@@ -11,7 +11,10 @@
       (keyword (subs frag 1))
       :title)))
 
-(defonce state (r/atom {:screen (screen-from-hash)}))
+(defonce state (r/atom {:screen (screen-from-hash)
+                        :ghost {:x 0
+                                :y 0
+                                :r "0deg"}}))
 
 ; set up basic history popstate management
 (.addEventListener js/window "popstate"
@@ -43,17 +46,37 @@
     [:textPath {:href "#curve" :textAnchor "middle" :startOffset "50%"}
      [:tspan game-title]]]])
 
+(defn update-state [state t]
+  #_(prn [:state state])
+  (let [speed-factor 1e-3
+        delta-time (- t (:time state))
+        distance (* speed-factor delta-time)
+        key-pressed? (:pressed-keys state)]
+    (-> state
+        (assoc :time t)
+        (assoc-in [:ghost :r] (-> t (/ 10) (str "deg")))
+        (cond-> (key-pressed? :ArrowLeft)
+          (update-in [:ghost :x] - distance))
+        (cond-> (key-pressed? :ArrowRight)
+          (update-in [:ghost :x] + distance))
+        (cond-> (key-pressed? :ArrowDown)
+          (update-in [:ghost :y] - distance))
+        (cond-> (key-pressed? :ArrowUp)
+          (update-in [:ghost :y] + distance)))))
+
 (defn component:game []
-  [:main
-   [:div.cgv {:style {"--size" 10}}
-    [:img.cgv-entity
-     {:src
-      "https://cdn.jsdelivr.net/gh/twitter/twemoji/assets/svg/1f47b.svg"
-      :style
-      {"--w" 1
-       "--h" 1
-       "--x" 0
-       "--y" 0}}]]])
+  (let [ghost (get @state :ghost)]
+    [:main
+     [:div.cgv {:style {"--size" 10}}
+      [:img.cgv-entity
+       {:src
+        "https://cdn.jsdelivr.net/gh/twitter/twemoji/assets/svg/1f47b.svg"
+        :style
+        {"--w" 1
+         "--h" 1
+         "--x" (:x ghost)
+         "--y" (:y ghost)
+         "--r" (:r ghost)}}]]]))
 
 (defn component:back-button []
   [:a.button.cta {:href "#"
@@ -106,5 +129,19 @@
       :settings [component:settings]
       :credits [component:credits]
       [:h1 "Unknown screen: " screen])))
+
+(defonce set-up-event-loop
+  (do
+    (doseq [event ["keyup" "keydown"]]
+      (js/window.addEventListener
+        event
+        (fn [e]
+          (swap! state
+                 assoc-in [:pressed-keys (keyword (.-key e))]
+                 (= "keydown" event)))))
+    ((fn ! [t]
+       (swap! state update-state t)
+       (js/window.requestAnimationFrame !)) 0)
+    :done))
 
 (rdom/render [component:app] (.getElementById js/document "app"))
