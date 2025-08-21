@@ -14,7 +14,8 @@
 (defonce state (r/atom {:screen (screen-from-hash)
                         :ghost {:x 0
                                 :y 0
-                                :r "0deg"}}))
+                                :r "0deg"}
+                        :pressed-keys {}}))
 
 ; set up basic history popstate management
 (.addEventListener js/window "popstate"
