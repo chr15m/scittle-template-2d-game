@@ -49,13 +49,13 @@
 
 (defn update-state [state t]
   #_(prn [:state state])
-  (let [speed-factor 1e-3
+  (let [speed-factor 1e-2
         delta-time (- t (:time state))
         distance (* speed-factor delta-time)
         key-pressed? (:pressed-keys state)]
     (-> state
         (assoc :time t)
-        (assoc-in [:ghost :r] (-> t (/ 10) (str "deg")))
+        (assoc-in [:ghost :r] (-> t (/ 250) js/Math.sin (* 10) (str "deg")))
         (cond-> (key-pressed? :ArrowLeft)
           (update-in [:ghost :x] - distance))
         (cond-> (key-pressed? :ArrowRight)
